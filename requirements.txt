@@ -1,3 +1,2 @@
+py-telegram-bot-api
 requests
-python-telegram-bot==21.0.1
-urllib3<2.0
