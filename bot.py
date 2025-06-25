@@ -14,7 +14,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # --- Constants ---
-DOMAINS_FILE = "/home/ubuntu/telegram-check-domain/domains.json"
+DOMAINS_FILE = "/app/domains.json"
 
 # --- Helper Functions ---
 def load_domains():
@@ -70,7 +70,7 @@ async def checknow_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def add_domain_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Adds a domain to the list."""
     logger.info("Received /adddomain command.")
-    logger.info(f"Chat ID received: {update.effective_chat.id}") # <--- TAMBAHKAN BARIS INI
+    logger.info(f"Chat ID received: {update.effective_chat.id}")
 
     if str(update.effective_chat.id) != ADMIN_CHAT_ID:
         logger.warning(f"Unauthorized user {update.effective_chat.id} tried to run /adddomain.")
