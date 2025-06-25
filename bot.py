@@ -1,7 +1,9 @@
+
 # bot.py - The Interactive Trigger Bot
 import os
 import requests
 import logging
+import json
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
@@ -10,6 +12,20 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 logger = logging.getLogger(__name__)
+
+# --- Constants ---
+DOMAINS_FILE = "/home/ubuntu/telegram-check-domain/domains.json"
+
+# --- Helper Functions ---
+def load_domains():
+    if not os.path.exists(DOMAINS_FILE):
+        return []
+    with open(DOMAINS_FILE, "r") as f:
+        return json.load(f)
+
+def save_domains(domains):
+    with open(DOMAINS_FILE, "w") as f:
+        json.dump(domains, f, indent=4)
 
 # --- Get Secrets from Railway Variables ---
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -21,7 +37,7 @@ ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Replies when the /start command is sent."""
     logger.info("Received /start command.")
-    await update.message.reply_text("Hello! I am the interactive bot. Send /checknow to get an instant report.")
+    await update.message.reply_text("Hello! I am the interactive bot. Send /checknow to get an instant report, or /adddomain <domain> and /deldomain <domain> to manage domains.")
 
 async def checknow_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Triggers the reporting script via a webhook."""
@@ -51,6 +67,68 @@ async def checknow_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"CRITICAL: Failed to trigger webhook. Error: {e}")
         await update.message.reply_text("Error: There was a problem triggering the report job.")
 
+async def add_domain_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Adds a domain to the list."""
+    logger.info("Received /adddomain command.")
+
+    if str(update.effective_chat.id) != ADMIN_CHAT_ID:
+        logger.warning(f"Unauthorized user {update.effective_chat.id} tried to run /adddomain.")
+        await update.message.reply_text("Sorry, you are not authorized to use this command.")
+        return
+
+    if not context.args:
+        await update.message.reply_text("Usage: /adddomain <domain>")
+        return
+
+    domain_to_add = context.args[0].strip().lower()
+    domains = load_domains()
+
+    if domain_to_add in domains:
+        await update.message.reply_text(f"Domain {domain_to_add} already exists.")
+    else:
+        domains.append(domain_to_add)
+        save_domains(domains)
+        await update.message.reply_text(f"Domain {domain_to_add} added successfully.")
+
+async def del_domain_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Deletes a domain from the list."""
+    logger.info("Received /deldomain command.")
+
+    if str(update.effective_chat.id) != ADMIN_CHAT_ID:
+        logger.warning(f"Unauthorized user {update.effective_chat.id} tried to run /deldomain.")
+        await update.message.reply_text("Sorry, you are not authorized to use this command.")
+        return
+
+    if not context.args:
+        await update.message.reply_text("Usage: /deldomain <domain>")
+        return
+
+    domain_to_delete = context.args[0].strip().lower()
+    domains = load_domains()
+
+    if domain_to_delete in domains:
+        domains.remove(domain_to_delete)
+        save_domains(domains)
+        await update.message.reply_text(f"Domain {domain_to_delete} deleted successfully.")
+    else:
+        await update.message.reply_text(f"Domain {domain_to_delete} not found.")
+
+async def list_domains_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Lists all domains currently being checked."""
+    logger.info("Received /listdomains command.")
+
+    if str(update.effective_chat.id) != ADMIN_CHAT_ID:
+        logger.warning(f"Unauthorized user {update.effective_chat.id} tried to run /listdomains.")
+        await update.message.reply_text("Sorry, you are not authorized to use this command.")
+        return
+
+    domains = load_domains()
+    if domains:
+        domain_list_text = "Current domains:\n" + "\n".join([f"- {d}" for d in domains])
+        await update.message.reply_text(domain_list_text)
+    else:
+        await update.message.reply_text("No domains configured yet. Use /adddomain to add some.")
+
 # --- Main Application Setup ---
 
 def main():
@@ -63,9 +141,14 @@ def main():
     
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("checknow", checknow_command))
+    application.add_handler(CommandHandler("adddomain", add_domain_command))
+    application.add_handler(CommandHandler("deldomain", del_domain_command))
+    application.add_handler(CommandHandler("listdomains", list_domains_command))
     
     logger.info("Interactive bot started successfully. Listening for commands...")
     application.run_polling()
 
 if __name__ == "__main__":
     main()
+
+
