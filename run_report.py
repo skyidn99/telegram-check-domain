@@ -1,11 +1,21 @@
+
 # run_report.py
 import os
 import requests
+import json
 
 # Get secrets from Railway's environment variables
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 CHAT_ID = os.getenv("ADMIN_CHAT_ID")
-DOMAINS_STR = os.getenv("DOMAINS_TO_CHECK")
+
+# --- Constants ---
+DOMAINS_FILE = "/home/ubuntu/telegram-check-domain/domains.json"
+
+def load_domains():
+    if not os.path.exists(DOMAINS_FILE):
+        return []
+    with open(DOMAINS_FILE, "r") as f:
+        return json.load(f)
 
 def check_domain(domain: str) -> str:
     """Checks a single domain and returns a status string."""
@@ -42,13 +52,17 @@ def send_telegram_message(text: str):
 # --- Main script logic ---
 if __name__ == "__main__":
     print("--- Cron job script started. ---")
-    if not all([BOT_TOKEN, CHAT_ID, DOMAINS_STR]):
-        error_msg = "FATAL: One or more environment variables (TELEGRAM_BOT_TOKEN, ADMIN_CHAT_ID, DOMAINS_TO_CHECK) are missing."
+    if not all([BOT_TOKEN, CHAT_ID]):
+        error_msg = "FATAL: One or more environment variables (TELEGRAM_BOT_TOKEN, ADMIN_CHAT_ID) are missing."
         print(error_msg)
         # We can't send a Telegram message if the token/ID is missing, so we just exit.
         exit()
 
-    domains = [domain.strip() for domain in DOMAINS_STR.split(',')]
+    domains = load_domains()
+    if not domains:
+        print("No domains to check. Exiting.")
+        exit()
+
     report_lines = ["*Domain Status Report*"]
 
     for domain in domains:
@@ -58,4 +72,6 @@ if __name__ == "__main__":
 
     final_report = "\n".join(report_lines)
     send_telegram_message(final_report)
-    print("--- Cron job script finished. ---")
+    print("--- Cron job script finished. --")
+
+
