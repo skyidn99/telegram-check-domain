@@ -9,7 +9,7 @@ BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 CHAT_ID = os.getenv("ADMIN_CHAT_ID")
 
 # --- Constants ---
-DOMAINS_FILE = "/home/ubuntu/telegram-check-domain/domains.json"
+DOMAINS_FILE = "/app/domains.json"
 
 def load_domains():
     if not os.path.exists(DOMAINS_FILE):
